@@ -53,6 +53,7 @@
     //跳转下一页
     // var nextCourse = () => $(".next").click();
 
+    const letterList = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split('');// 字母索引
 
     //入口
     switch (url) {
@@ -251,12 +252,11 @@
             let type = $(".e-q-body:eq("+i+") .quiz-type").text().replace(/\n/g);
             for (let iLib = 0; iLib < answerLib.length; iLib ++) {// 在题库中匹配最合适的题目
                 let v = answerLib[iLib];
-                if (!type.includes(v.type)) {
+                if (!type.includes(v.type)) {// 匹配题目类型
                     answerData = 1;
                     continue;
                 }
-
-                if (Trim($(".e-q-body:eq("+i+") .e-q-q .ErichText")[0].innerText.replace(/\n/g), "g") === Trim(v.problem.replace(/\n/g), "g")) {
+                if (Trim($(".e-q-body:eq("+i+") .e-q-q .ErichText")[0].innerText.replace(/\n/g), 'g') === Trim(v.problem.replace(/\n/g), 'g')) {// 匹配题目
                     answerData = v;
                     if (type === '填空题' || type === '问答题') {
                         let inputs = $(".e-q-body:eq("+i+") input[type=text]");
@@ -274,63 +274,101 @@
                         }
                         break;
                     }
+                    if (type === '匹配题') {
+						let matching_left = $(".e-q-body:eq("+i+") .np-matching-left:eq(0) .ErichText");// 题
+						let matching_right = $(".e-q-body:eq("+i+") .np-matching-right:eq(0) .ErichText");// 选项
+						var matching_right_list = [[], []];// 右索引表
+						for (let i_ = 0; i_ < matching_right.length; i_++) {// 遍历 构建右索引表
+							let arr = Trim(matching_right.eq(i_)[0].innerText, 'g').split('、');
+							arr[0] = letterList.indexOf(arr[0]);
+							matching_right_list[0].push(arr[0]);
+							matching_right_list[1].push(arr[1]);
+						}
+						for (let i_ = 0; i_ < matching_left.length; i_++) {
+							let left = Trim(matching_left.eq(i_)[0].innerText, 'g').split('、')[1];// 题目中的题目文本
+							let answer = answerData.answer[answerData.chooes.indexOf(left)];// 用题目匹配答案中的文本
+							let v = matching_right_list[0][matching_right_list[1].indexOf(answer)];// 用答案文本获取当前答案在题目中的选项索引
+							console.log([left, answerData.chooes.indexOf(left), answer, v]);
+							console.log(letterList[v]);
+							$(".e-q-body:eq("+i+") .np-matching-options:eq(0) select:eq("+i_+") option[value="+v+"]").prop('selected', 'selected');
+							$(".e-q-body:eq("+i+") .np-matching-options:eq(0) select:eq("+i_+") option[value="+v+"]").trigger('change');
+						}
+                        break;
+                    }
+                    if (type === '判断题') {
+						let ele;
+						if (answerData.answer[0]) {// answer中1是错误
+							ele = $(".e-q-body:eq("+i+") .e-a[data-index=0]");// 0是错误
+						} else {
+							ele = $(".e-q-body:eq("+i+") .e-a[data-index=1]");
+						}
+						if (ele.hasClass("checked")) break;
+						ele.trigger('click');
+                        break;
+                    }
                     var chooesedCount = 0;
                     for (let iAnswer = 0; iAnswer < answerData.answer.length; iAnswer++) {// 答案文本
-                        let chooesItem = $(".e-q-body:eq("+i+") .ErichText");
+                        let chooesItem = $(".e-q-body:eq("+i+") .e-choice-a:eq(0) .ErichText");
                         for (let i_ = 0; i_<chooesItem.length; i_++) {
-                            //console.log([Trim(chooesItem.eq(i_).text(), "g").substr(1), Trim(answerData.chooes[answerData.answer[iAnswer]], "g"), Trim(chooesItem.eq(i_).text(), "g") == Trim(answerData.chooes[answerData.answer[iAnswer]], "g")])
-                            if (Trim(chooesItem.eq(i_).text(), "g").substr(1) == Trim(answerData.chooes[answerData.answer[iAnswer]], "g")) {
+                            if (Trim(chooesItem.eq(i_)[0].innerText.replace(/\n/g), 'g') == Trim(answerData.chooes[answerData.answer[iAnswer]].replace(/\n/g), 'g')) {
                                 chooesedCount++;
                                 break;
                             }
                         }
                     }
                     if (chooesedCount != answerData.answer.length) {
-                        //console.log(["题目匹配成功，选项校验失败"+answerData, $(".e-q-body:eq("+i+") .quiz-type").text(), $(".e-q-body:eq("+i+") .e-q-q div").text()]);
+                        console.log(["题目匹配成功，选项校验失败，"+type, $(".e-q-body:eq("+i+") .ErichText")[0].innerText]);
                         continue;
                     }
                     break;
                 }
 
             }
-            console.log(["模糊匹配题库", $(".e-q-body:eq("+i+") .e-q-q div").text()]);
-            if (typeof(answerData) === "number") {// 模糊匹配题库
-                for (let iLib = 0; iLib < answerLib.length; iLib ++) {
-                    let v = answerLib[iLib];
-                    let prText = compareText($(".e-q-body:eq("+i+") .e-q-q div").text(), v.problem);
-                    if (prText < 85) {
-                        if (pr === 0) {
-                            answerData = 2;
-                        }
-                    } else if (prText > pr) {
-                        pr = prText;
-                        answerData = v;
-                        if (prText > 92) {
-                            break;
-                        }
-                    }
-                }
-            }
-            if (typeof(answerData) === "number") {
-                console.log(["匹配失败"+answerData, $(".e-q-body:eq("+i+") .quiz-type").text(), Trim($(".e-q-body:eq("+i+") .e-q-q .ErichText")[0].innerText.replace(/\n/g), "g")]);
-                continue;
-            }
-            if (type === '填空题' || type === '问答题') {
+
+			if (typeof(answerData) === "number") {// 模糊匹配题库
+				console.log(["模糊匹配题库", i, Trim($(".e-q-body:eq("+i+") .e-q-q .ErichText")[0].innerText.replace(/\n/g), 'g')]);
+				for (let iLib = 0; iLib < answerLib.length; iLib ++) {
+					let v = answerLib[iLib];
+					let prText = compareText(Trim($(".e-q-body:eq("+i+") .e-q-q .ErichText")[0].innerText.replace(/\n/g), 'g'), v.problem);
+					if (prText < 85) {
+						if (pr === 0) {
+							answerData = 2;
+						}
+					} else if (prText > pr) {
+						pr = prText;
+						answerData = v;
+						if (prText > 92) {
+							break;
+						}
+					}
+				}
+			}
+			if (typeof(answerData) === "number") {
+				console.log([
+					"匹配失败"+answerData, $(".e-q-body:eq("+i+") .quiz-type")[0].innerText,
+					Trim($(".e-q-body:eq("+i+") .e-q-q .ErichText")[0].innerText.replace(/\n/g), 'g')
+				]);
+				continue;
+			}
+            if (['填空题', '问答题', '匹配题', '判断题'].indexOf(type) > -1) {
                 continue;
             }
             //console.log([" 匹配成功", $(".e-q-body:eq("+i+") .e-q-q div").text(), answerData.problem, answerData]);
             //answerData
             $("#_content").append("# "+ i +" 题目\n"+answerData.problem+"\n"+ answerData.answer.join("、")+"\n选择：");
             for (let iAnswer = 0; iAnswer < answerData.answer.length; iAnswer++) {// 答案文本
-                let chooesItem = $(".e-q-body:eq("+i+") .ErichText");
+                let chooesItem = $(".e-q-body:eq("+i+") .e-choice-a:eq(0) .ErichText");
+				if (chooesItem.length === 0) {
+					chooesItem = $(".e-q-body:eq("+i+") .e-a");
+				}
                 for (let i_ = 0; i_<chooesItem.length; i_++) {
-                    console.log([i, Trim(chooesItem.eq(i_).text(), "g"), Trim(answerData.chooes[answerData.answer[iAnswer]], "g")])
-                    if (Trim(chooesItem.eq(i_).text(), "g") === Trim(answerData.chooes[answerData.answer[iAnswer]], "g")) {
-                        //intClickList.push(`if (! $(".e-q-body:eq(${i}) .ErichText").eq(${i_}).hasClass("checked")) $(".e-q-body:eq(${i}) .ErichText").eq(${i_}).click();`);
+                    //console.log([i, Trim(chooesItem.eq(i_)[0].innerText, 'g'), Trim(answerData.chooes[answerData.answer[iAnswer]], 'g')])
+                    if (Trim(chooesItem.eq(i_)[0].innerText, 'g') === Trim(answerData.chooes[answerData.answer[iAnswer]], 'g')) {// 判断选项是否一样
+                        //intClickList.push(`if (! $(".e-q-body:eq(${i}) .e-a").eq(${i_}).hasClass("checked")) $(".e-q-body:eq(${i}) .e-a").eq(${i_}).click();`);
                         if (!chooesItem.eq(i_).hasClass("checked")) {
-                            //$(".e-q-body:eq("+i+") .ErichText").eq(i_).click();
+                            //$(".e-q-body:eq("+i+") .e-a").eq(i_).click();
                         }
-                        intClickList.push(`$(".e-q-body:eq(${i}) .ErichText").eq(${i_})`);
+                        intClickList.push(`$(".e-q-body:eq(${i}) .e-a").eq(${i_})`);
                         $("#_content").append(answerData.chooes[answerData.answer[iAnswer]]+"\n");
                         break;
                     }
@@ -374,7 +412,7 @@
      */
     function writeProblem(){
         for (let i = 0, length = $(".e-q-body").length; i< length; i++) {
-            let chooesItem = $(".e-q-body:eq("+i+") .ErichText");
+            let chooesItem = $(".e-q-body:eq("+i+") .e-choice-a:eq(0) .ErichText");
             for (let i_ = 0; i_<chooesItem.length; i_++) {
                 chooesItem.eq(i_).click();
             }
@@ -392,7 +430,7 @@
      */
     function matchHandler() {
         const div = `<div style="border:#42b983 solid 2px;width: 330px; position: fixed; top: 0; right: 10px;  z-index: 99999">
-                        <button id="match_btn">匹配题目</button> <button id="write_btn">一键填写</button> <button id="submitHomeWork_btn">提交</button>
+                        <button id="match_btn">匹配题目</button> <button id="write_btn">一键填写</button> <button id="submitHomeWork_btn">提交</button> <button id="on_off_btn">开/关</button>
                         <hr/>
                         <textarea id="_content" style="width: 100%;height: 300px;border: #B3C0D1 solid 2px;overflow: auto;font-size: x-small" />
                     </div>`;
@@ -400,6 +438,7 @@
         $("#match_btn").bind('click', () => matchProblem());
         $("#write_btn").bind('click', () => writeProblem());
         $("#submitHomeWork_btn").bind('click', () => submitHomeWork());
+        $("#on_off_btn").bind('click', () => {$('#_content').css('display') === 'none' ? $('#_content').show() : $('#_content').hide()});
     }
     /**
      * 视频类处理
@@ -456,31 +495,41 @@
     function exactProblemToJSON() {
         const arr = $(".e-q-body");
         let text = "";
-		let problemType = ["判断题", "多选题", "单选题", "填空题", "问答题", "阅读理解"];
+		let problemType = ["判断题", "多选题", "单选题", "填空题", "问答题", "阅读理解", "匹配题"];
 		let isProblemContext = false;
         let isChooesContext = false;
 		let saveOfData = [];
-        let letterList = ["A", "B", "C", "D", "E", "F"];
 
         for (let x = 0; x < arr.length; x++) {
             let obj = {type: "", problem: "", chooes: [], answer: []};
-            obj.problem = $(".e-q-body:eq("+x+") .e-q-q:eq(0) .ErichText:eq(0)")[0].innerText.replace(/\n/g, '');// 题目
+            obj.problem = Trim($(".e-q-body:eq("+x+") .e-q-q:eq(0) .ErichText")[0].innerText.replace(/\n/g, ''), 'g');// 题目
 
-            obj.type = $(".e-q-body:eq("+x+") .quiz-type:eq(0)")[0].innerText; // 题目类型
+            obj.type = $(".e-q-body:eq("+x+") .quiz-type")[0].innerText; // 题目类型
             if (obj.type === problemType[3]) {// 填空题 特判
                 let answers = $(".e-q-body:eq("+x+") .e-blank-i");
                 for (let i = 0; i< answers.length; i++) {
-                    obj.answer[i] = Trim(answers[i].innerText.replace(/\n/g, ''), 'g')
+                    obj.answer[i] = Trim(answers[i].innerText.replace(/\n/g, ''), 'g');
                 }
                 saveOfData.push(obj);
                 continue;
             }
-            console.log(problemType[4])
+            console.log(problemType[6])
             if (obj.type === problemType[4]) {// 问答题 特判
-                obj.answer[0] = Trim($(".e-q-body:eq("+x+") .e-ans-r:eq(0)")[0].innerText.replace(/\n/g, ''), 'g')
+                obj.answer[0] = Trim($(".e-q-body:eq("+x+") .e-ans-r")[0].innerText.replace(/\n/g, ''), 'g');
                 saveOfData.push(obj);
                 continue;
             }
+			if (obj.type === problemType[6]) {// 匹配题
+				let matching_left = $(".e-q-body:eq(0) .np-matching-left:eq(0) .ErichText");// 题
+				let matching_options = $(".e-q-body:eq(0) .np-matching-options:eq(0) .e-choice-i");// 答案
+				let matching_right = $(".e-q-body:eq(0) .np-matching-right:eq(0) .ErichText");// 选项
+				for (let i = 0; i < matching_left.length; i++) {
+					obj.chooes.push(Trim(matching_left.eq(i)[0].innerText, 'g').split('、')[1]);
+					obj.answer.push(Trim(matching_right.eq(letterList.indexOf(Trim(matching_options.eq(i)[0].innerText, 'g')))[0].innerText, 'g').split('、')[1]);
+				}
+                saveOfData.push(obj);
+				continue;
+			}
 
             let problemList = $(".e-q-body:eq("+x+") .e-a-g:eq(0) .e-a");// 选项
             for (let i = 0; i<problemList.length; i++) {
@@ -501,7 +550,7 @@
                 obj.chooes.push(context);
             }
 
-            let answer = Trim($(".e-q-body:eq("+x+") .e-ans-ref:eq(0)")[0].innerText.substr(6), "g");
+            let answer = Trim($(".e-q-body:eq("+x+") .e-ans-ref")[0].innerText.substr(6), 'g');
             if (/^[a-zA-Z]+$/.test(answer.substr(0, 1))) {
                 answer.split("").forEach(function(v) {
                     obj.answer.push(letterList.indexOf(v));
@@ -620,7 +669,7 @@
     {
         var result;
         result = str.replace(/(^\s+)|(\s+$)/g,"");
-        if(is_global=="g")
+        if(is_global=='g')
         {
             result = result.replace(/\s|\n/g,"");
         }
@@ -651,8 +700,8 @@
      * 简单的匹配文本相似度
      */
     function compareText(x, y) {
-        if (typeof(x) === "string") x = Trim(x, "g").split("");
-        if (typeof(y) === "string") y = Trim(y, "g").split("");
+        if (typeof(x) === "string") x = Trim(x, 'g').split("");
+        if (typeof(y) === "string") y = Trim(y, 'g').split("");
         var z = 0;
         var s = x.length + y.length;;
         x.sort();
@@ -677,3 +726,4 @@
     ]};
     console.log(MOOCAnswerLib.w2zyaacu49c509itxz8qa.length)
 })();
+
